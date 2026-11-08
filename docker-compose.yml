@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  portfolio_web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: portfolio-ci-cd
+    restart: always
+    ports:
+      - "80:80"
