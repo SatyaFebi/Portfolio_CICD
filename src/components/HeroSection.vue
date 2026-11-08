@@ -52,7 +52,7 @@ const store = usePortfolioStore()
             <!-- Avatar placeholder -->
             <div class="w-72 h-72 rounded-3xl bg-linear-to-br from-[#6c63ff] to-[#00c896] p-1">
               <div class="w-full h-full rounded-3xl bg-cream flex items-center justify-center">
-                 <img class="w-60" src="../../assets/img/satya.png" alt="">
+                 <img class="w-60" src="/assets/img/satya.png" alt="Satya Photo">
               </div>
             </div>
             <!-- Floating badge -->
