@@ -1,4 +1,4 @@
-name: Deploy to AWS EC2
+name: Deploy App to AWS EC2 with S3 Backup
 
 on:
    push:
@@ -11,12 +11,46 @@ jobs:
       steps:
          - name: Checkout Code
            uses: actions/checkout@v4
-         
+
+         - name: Set up Node.js
+           uses: actions/setup-node@v4
+           with:
+            node-version: '20'
+            cache: 'npm'
+
+         # Install depedencies & Build app
+         - name: Install depedencies and build
+           run: |
+            npm install
+            npm run build
+
+         # Compress build result to zip for archive
+         - name: Archive build artifacts
+           run: |
+            zip -r dist.zip dist/
+
+         # Configure AWS Credentials (Make sure IAM User have access to S3 & EC2)
+         - name: Configure AWS Credentials
+           uses: aws-actions/configure-aws-credentials@v4
+           with:
+            aws-accress-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            aws-region: ap-southeast-1
+
+         # Upload archive build file to S3 Bucket (Versioned/Timestamped)
+         - name: Upload Artifact to S3
+           run: |
+            TIMESTAMP=$(date +'%Y%m%d_%H%M%S')
+            aws s3 cp dist.zip s3://${{ secrets.AWS_S3_BUCKET_NAME }}/releases/dist-$TIMESTAMP.zip
+            aws s3 cp dist.zip s3://${{ secrets.AWS_S3_BUCKET_NAME }}/releases/dist-latest.zip
+
+         # Setup SSH Agent to connect to EC2
          - name: Set up SSH Key
            uses: webfactory/ssh-agent@v0.9.0
            with:
             ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
          
+         # Adding Known Host securely
          - name: Adding Known Hosts
            run: |
             mkdir -p ~/.ssh
@@ -30,21 +64,19 @@ jobs:
             echo "Checking known hosts content:"
             tail -n 5 ~/.ssh/known_hosts
 
-         - name: Copy project files to EC2 and Build Docker
-           run: |
-             ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-             # Create project folder if there is none
-             mkdir -p ~/portfolio-vue
-             EOF
-
-             # Send project file (except node_modules, .git, dll) to server
-             rsync -avz --exclude 'node_modules' --exclude '.git' --exclude 'terraform' ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/portfolio-vue/
-
-             ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+         # Deploy to EC2 with Zero-Downtime use Docker Compose
+         - name: Deploy to AWS EC2 via SSH
+           uses: appleboy/ssh-action@master
+           with:
+            host: ${{ secrets.EC2_HOST }}
+            username: ubuntu
+            key: ${{ secrets.EC2_SSH_KEY }}
+            script: |
                cd ~/portfolio-vue
+               git pull origin main
 
-               # Make sure that the Docker & Docker Compose are active in server
-               # Build and re-run Docker container
-               sudo docker compose down
-               sudo docker compose up --build -d
-             EOF
+               # Build & Rolling update container without significant downtime
+               sudo docker compose up -d --build --remove-orphans
+
+               # Clear docker image cache that no longer needed
+               sudo docker image prune -f
