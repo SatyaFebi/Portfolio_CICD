@@ -8,8 +8,8 @@ export const usePortfolioStore = defineStore('portfolio', {
       tagline: 'I build products and ship them reliably.',
       bio: 'Passionate about crafting scalable web applications and automating infrastructure. I thrive at the intersection of development and operations — writing clean code and keeping systems running smooth.',
       email: 'satya@example.com',
-      github: 'https://github.com/satyafebi',
-      linkedin: 'https://linkedin.com/in/satyafebi',
+      github: 'https://github.com/SatyaFebi',
+      linkedin: 'https://linkedin.com/in/satyafbi',
       location: 'Indonesia 🇮🇩',
     },
     skills: [
