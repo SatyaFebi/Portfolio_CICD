@@ -20,7 +20,15 @@ jobs:
          - name: Adding Known Hosts
            run: |
             mkdir -p ~/.ssh
-            ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+            chmod 700 ~/.ssh
+
+            # Scan key from EC2 and make sure it's not empty
+            ssh-keyscan -t rsa,ecdsa,ed25519 -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+            chmod 600 ~/.ssh/known_hosts
+
+            # Check if known_hosts is filled or not
+            echo "Checking known hosts content:"
+            tail -n 5 ~/.ssh/known_hosts
 
          - name: Copy project files to EC2 and Build Docker
            run: |
