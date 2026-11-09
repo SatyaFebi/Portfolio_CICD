@@ -66,8 +66,23 @@ resource "aws_instance" "portfolio_ec2" {
    }
 }
 
+# Allocate Elastic IP
+resource "aws_eip" "portfolio_eip" {
+   domain = "vpc"
+
+   tags = {
+      Name = "portfolio-elastic-ip"
+   }
+}
+
+# Connect Elastic IP to EC2 Instance
+resource "aws_eip_association" "eip_assoc" {
+   instance_id    = aws_instance.portfolio_ec2.id
+   allocation_id  = aws_eip.portfolio_eip.id
+}
+
 # EC2 Public IP Output
 output "portfolio_public_ip" {
-   value       = aws_instance.portfolio_ec2.public_ip
-   description = "Public IP from EC2 portfolio"
+   value       = aws_eip.portfolio_eip.public_ip
+   description = "Elastic IP public EC2 portfolio"
 }
