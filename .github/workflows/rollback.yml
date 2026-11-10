@@ -1,0 +1,53 @@
+name: Rollback to Previous Version from S3
+
+on:
+   workflow_dispatch:
+      inputs:
+         version_timestamp:
+            description: 'Version timestamp that want to rollback'
+            required: true
+            default: 'latest'
+
+jobs:
+   rollback:
+      runs-on: ubuntu-latest
+      steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+         aws-secret-access-id: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+         aws-region: ap-southeast-1
+      
+      # Download specifiec archive file from S3
+      - name: Download Build Artifact from S3
+        run: |
+         if [ "${{ github.event.inputs.version_timestamp }}" == "latest" ]; then
+            aws s3 cp s3://${{ secrets.AWS_S3_BUCKET_NAME }}/releases/dist-latest.zip
+         else
+            aws s3 cp s3://${{ secrets.AWS_S3_BUCKET_NAME }}/releases/dist-${{ github.event.inputs.version_timestamp }}.zip ./dist.zip
+         fi
+         unzip dist.zip
+
+      # Setup SSH Key
+      - name: Set up SSH Key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+         ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+      
+      - name: Adding Known Hosts
+        run: |
+         mkdir -p ~/.ssh
+         chmod 700 ~/.ssh
+         ssh-keyscan -t rsa,ecdsa,ed25519 -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+         chmod 600 ~/.ssh/known_hosts
+
+      # Send S3 download result to EC2 & restart container
+      - name: Deploy Rollback Version to EC2
+        run: |
+         rsync -avz --delete ./dist/ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/portfolio-vue/dist/
+
+         ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            cd ~/portfolio-vue
+            sudo docker compose up -d --remove-orphans
+         EOF
