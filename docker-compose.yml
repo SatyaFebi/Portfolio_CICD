@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   portfolio_web:
     build:
@@ -43,7 +41,7 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=hellosatyahehe
     volumes:
-      - grafana-data:/var/lib/grafana
+      - grafana_data:/var/lib/grafana
 
 volumes:
   prometheus_data:
