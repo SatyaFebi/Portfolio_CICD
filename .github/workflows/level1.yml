@@ -1,0 +1,15 @@
+name: Is Github Action Successfully Running?
+
+on:
+   push:
+      branches: ["test"]
+
+jobs:
+   deploy:
+      runs-on: ubuntu-latest
+
+      steps:
+         - name: Text Log
+           run: |
+            echo "Halo, GitHub Actions berhasil berjalan!"
+            node -v
