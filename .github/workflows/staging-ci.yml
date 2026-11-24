@@ -1,0 +1,71 @@
+name: CI/CD Isolation & Staging Simulation
+
+on:
+   push:
+      branches: ["staging"]
+
+jobs:
+   validate-and-build:
+      runs-on: ubuntu-latest
+   
+      steps:
+         - name: Checkout Repo
+           uses: actions/checkout@v4
+
+         - name: Setup Node.js
+           uses: actions/setup-node@v4
+           with:
+            node-version: '20'
+            cache: 'npm'
+
+         - name: Validate and Build
+           run: |
+               # Install depedencies if there is package.json
+               if [ -f package.json ]; then npm ci; fi;
+
+               # Run test script
+               npm test --if-present
+               npm run build
+
+               mkdir -p sandbox/dist
+               cp -r dist/* sandbox/dist/
+
+         - name: Uploading Artifacts
+           uses: actions/uploading-artifacts@v4
+           with:
+            name: sandbox-build-v1
+            path: sandbox/dist/
+            if-no-files-found: error
+
+   dry-run-deploy:
+      needs: validate-and-build
+      if: success()
+      runs-on: ubuntu-latest
+      steps:
+         - name: Download build artifacts
+           uses: action/download-artifacts@v4
+           with: 
+            name: sandbox-build-v1
+            path: sandbox/dist/
+
+         - name: Simulate isolated deployment
+           env:
+            TARGET_DIR: /opt/sandbox-app
+            TARGET_PORT: "8085"
+            
+           run: |
+               # Guardrail
+               if [ "$TARGET_PORT" = "80" ]; then
+                echo "ERROR: Dilarang memakai port 80 (utama) pada simulasi sandbox"
+                exit 1; 
+               fi
+
+               echo "Target folder: $TARGET_DIR"
+               echo "Target port: $TARGET_PORT"
+               echo "Isi artifact:"
+               ls -la sandbox/dist/
+               echo "Simulasi deploy ke $TARGET_DIR dengan port $TARGET_PORT selesai."
+
+concurrency:
+   group: sandbox-${{ github.ref }}
+   cancel-in-progress: true
